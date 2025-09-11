@@ -4,7 +4,7 @@ use crate::board::BoardPosition;
 pub struct U3 { value: u8 }
 
 impl U3 {
-    pub fn new(value: u8) -> Option<U3> {
+    pub const fn new(value: u8) -> Option<U3> {
         if value > 0b00000111 {
             None
         } else {
@@ -12,7 +12,7 @@ impl U3 {
         }
     }
 
-    pub fn get(self) -> u8 {
+    pub const fn get(self) -> u8 {
         self.value
     }
 }
@@ -40,7 +40,7 @@ impl TryFrom<u8> for U3 {
 pub struct U6 { value: u8 }
 
 impl U6 {
-    pub fn new(value: u8) -> Option<U6> {
+    pub const fn new(value: u8) -> Option<U6> {
         if value > 0b00111111 {
             None
         } else {
@@ -48,7 +48,7 @@ impl U6 {
         }
     }
 
-    pub fn get(self) -> u8 {
+    pub const fn get(self) -> u8 {
         self.value
     }
 }
