@@ -1,3 +1,5 @@
+use crate::util::U3;
+
 use PieceType::*;
 use PlayerColor::*;
 
@@ -47,5 +49,24 @@ impl Piece {
             (Queen, Black) => "q",
             (King, Black) => "k",
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct BoardPosition {
+    pub file: U3,
+    pub rank: U3
+}
+
+impl Into<(u8, u8)> for BoardPosition {
+    fn into(self) -> (u8, u8) {
+        (self.file.into(), self.rank.into())
+    }
+}
+
+impl TryFrom<(u8, u8)> for BoardPosition {
+    type Error = ();
+    fn try_from(value: (u8, u8)) -> Result<Self, Self::Error> {
+        Ok(BoardPosition { file: value.0.try_into()?, rank: value.1.try_into()? })
     }
 }
