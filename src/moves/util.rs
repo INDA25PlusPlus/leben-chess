@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
-use crate::board::BoardPosition;
+use crate::board::board_pos::BoardPosition;
 use crate::util::U6;
 
 #[derive(Copy, Clone, Eq, PartialEq, Default)]

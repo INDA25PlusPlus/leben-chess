@@ -1,4 +1,4 @@
-use crate::board::BoardPosition;
+use crate::board::board_pos::BoardPosition;
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
 pub struct U3 { value: u8 }

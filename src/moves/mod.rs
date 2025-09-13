@@ -1,6 +1,7 @@
-use crate::board::{BoardPosition, PieceType};
+use crate::board::board_pos::BoardPosition;
+use crate::board::piece::PieceType;
 
-mod util;
+pub mod util;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PromotionType {
