@@ -50,9 +50,30 @@ pub struct ChessMove {
     pub promotion: Option<PromotionType>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum AvailableMovesResult {
     Ok(BoardBitmap),
     Stalemate,
     Checkmate,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct CastlingRights {
+    queenside: bool,
+    kingside: bool,
+}
+
+impl Default for CastlingRights {
+    fn default() -> Self {
+        CastlingRights {
+            queenside: true,
+            kingside: true,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct MoveContext {
+    castling_rights: CastlingRights,
+    en_passant_target: Option<BoardPosition>,
 }
