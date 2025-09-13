@@ -1,5 +1,6 @@
 use crate::board::board_pos::BoardPosition;
 use crate::board::piece::PieceType;
+use crate::moves::util::BoardBitmap;
 
 pub mod util;
 mod move_patterns;
@@ -47,4 +48,11 @@ pub struct PieceMovement {
 pub struct ChessMove {
     pub chess_move: PieceMovement,
     pub promotion: Option<PromotionType>,
+}
+
+#[derive(Debug)]
+pub enum AvailableMovesResult {
+    Ok(BoardBitmap),
+    Stalemate,
+    Checkmate,
 }
