@@ -2,6 +2,7 @@ use crate::board::board_pos::BoardPosition;
 use crate::board::piece::PieceType;
 
 pub mod util;
+mod move_patterns;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PromotionType {
