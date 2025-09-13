@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use crate::board::board_pos::BoardPosition;
 use crate::board::piece::{Piece, PieceType::*, PlayerColor::*, PlayerColor};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Board { squares: [[Option<Piece>; 8]; 8] }
 
 impl Display for Board {
@@ -143,6 +143,40 @@ impl Board {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct BoardIterator<'a> {
+    board: &'a Board,
+    file: u8,
+    rank: u8,
+}
+
+impl<'a> Iterator for BoardIterator<'a> {
+    type Item = (BoardPosition, Option<Piece>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.rank > 7 {
+            return None;
+        }
+        let pos = BoardPosition::try_from((self.file, self.rank)).unwrap();
+        let piece = self.board.get_piece(pos);
+        self.file += 1;
+        if self.file > 7 {
+            self.file = 0;
+            self.rank += 1;
+        }
+        Some((pos, piece))
+    }
+}
+
+impl<'a> IntoIterator for &'a Board {
+    type Item = <BoardIterator<'a> as Iterator>::Item;
+    type IntoIter = BoardIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BoardIterator { board: self, file: 0, rank: 0 }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +197,33 @@ mod tests {
             "  a b c d e f g h"
         ).to_string();
         assert_eq!(format!("{}", board), expected);
+    }
+
+    #[test]
+    fn board_iter() {
+        let board = Board::default_board();
+        let pieces: Vec<Option<Piece>> = board
+            .into_iter()
+            .take(20)
+            .skip(6)
+            .map(|(pos, piece)| piece)
+            .collect();
+        let expected = vec![
+            Some(Piece { piece_type: Knight, player: White }),
+            Some(Piece { piece_type: Rook, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            None,
+            None,
+            None,
+            None,
+        ];
+        assert_eq!(pieces, expected);
     }
 }
