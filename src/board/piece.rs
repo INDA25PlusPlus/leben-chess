@@ -32,7 +32,7 @@ pub struct Piece {
 
 impl Piece {
     /// Gets a piece's FEN notation letter
-    pub fn get_char(&self) -> &'static str {
+    pub(crate) fn get_char(&self) -> &'static str {
         match (self.piece_type, self.player) {
             (Pawn, White) => "P",
             (Knight, White) => "N",
@@ -46,6 +46,24 @@ impl Piece {
             (Rook, Black) => "r",
             (Queen, Black) => "q",
             (King, Black) => "k",
+        }
+    }
+
+    pub(crate) fn from_char(ch: char) -> Option<Piece> {
+        match ch {
+            'P' => Some(Piece { piece_type: Pawn, player: White }),
+            'N' => Some(Piece { piece_type: Knight, player: White }),
+            'B' => Some(Piece { piece_type: Bishop, player: White }),
+            'R' => Some(Piece { piece_type: Rook, player: White }),
+            'Q' => Some(Piece { piece_type: Queen, player: White }),
+            'K' => Some(Piece { piece_type: King, player: White }),
+            'p' => Some(Piece { piece_type: Pawn, player: Black }),
+            'n' => Some(Piece { piece_type: Knight, player: Black }),
+            'b' => Some(Piece { piece_type: Bishop, player: Black }),
+            'r' => Some(Piece { piece_type: Rook, player: Black }),
+            'q' => Some(Piece { piece_type: Queen, player: Black }),
+            'k' => Some(Piece { piece_type: King, player: Black }),
+            _ => None,
         }
     }
 }

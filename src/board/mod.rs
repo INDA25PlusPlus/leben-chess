@@ -141,6 +141,54 @@ impl Board {
     pub fn default_board() -> Board {
         Board::DEFAULT_BOARD
     }
+
+
+    /// Instantiate a board from the piece placement section of a FEN string
+    ///
+    /// # Arguments
+    ///
+    /// * `string`: A string containing the eight ranks from 1 to 8 separated by `/`, with each
+    /// piece within a rank represented by the standard English chess piece names in algebraic
+    /// notation (pawn = "P", knight = "N", bishop = "B", rook = "R", queen = "Q", king = "K"), with
+    /// white pieces represented with uppercase letters and black pieces with lowercase letters.
+    /// Consecutive empty squares within a rank are represented collectively with a single digit 1-8
+    /// corresponding to the amount of squares.
+    ///
+    /// see: [Forsyth–Edwards Notation - Wikipedia](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation#Definition)
+    ///
+    /// returns: `Option<Board>`
+    pub fn from_fen_string(string: &str) -> Option<Board> {
+        let mut board = Board::empty_board();
+        let mut file = 0;
+        let mut rank = 0;
+        for ch in string.chars() {
+            if let Some(piece) = Piece::from_char(ch) {
+                if file >= 8 || rank >= 8 {
+                    return None;
+                }
+                let pos = BoardPosition::try_from((file, rank)).unwrap();
+                board.set_piece(pos, Some(piece));
+                file += 1;
+            } else if let Some(digit) = ch.to_digit(10) {
+                if digit as u8 + file > 8 {
+                    return None;
+                }
+                file += digit as u8;
+            } else if ch == '/' {
+                if file != 8 || rank > 6 {
+                    return None;
+                }
+                file = 0;
+                rank += 1;
+            } else {
+                return None;
+            }
+        }
+        if file != 8 || rank != 7 {
+            return None;
+        }
+        Some(board)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -225,5 +273,27 @@ mod tests {
             None,
         ];
         assert_eq!(pieces, expected);
+    }
+
+    #[test]
+    fn board_from_fen() {
+        assert_eq!(Board::from_fen_string(""), None);
+        assert_eq!(Board::from_fen_string("//////"), None);
+        assert_eq!(Board::from_fen_string("///////"), None);
+        assert_eq!(Board::from_fen_string("////////"), None);
+        assert_eq!(Board::from_fen_string("8/8/8/8/8/8/8/8"), Some(Board::empty_board()));
+        assert_eq!(
+            Board::from_fen_string(concat!(
+                "RNBQKBNR/",
+                "PPPPPPPP/",
+                "8/",
+                "8/",
+                "8/",
+                "8/",
+                "pppppppp/",
+                "rnbqkbnr"
+            )),
+            Some(Board::default_board())
+        );
     }
 }
