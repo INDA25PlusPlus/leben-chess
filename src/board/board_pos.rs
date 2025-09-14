@@ -52,14 +52,14 @@ pub(crate) struct BoardLine {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct MovePatternIterator {
+pub(crate) struct BoardLineIterator<'a> {
     origin: BoardPosition,
-    lines: Vec<BoardLine>,
+    lines: &'a [BoardLine],
     current_index: usize,
     current_line_length: usize,
 }
 
-impl Iterator for MovePatternIterator {
+impl<'a> Iterator for BoardLineIterator<'a> {
     type Item = TargetSquare;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -85,9 +85,9 @@ impl Iterator for MovePatternIterator {
     }
 }
 
-impl MovePatternIterator {
-    pub fn new(origin: BoardPosition, lines: Vec<BoardLine>) -> MovePatternIterator {
-        MovePatternIterator {
+impl<'a> BoardLineIterator<'a> {
+    pub fn new(origin: BoardPosition, lines: &'a [BoardLine]) -> BoardLineIterator<'a> {
+        BoardLineIterator {
             origin,
             lines,
             current_index: 0,
@@ -118,9 +118,9 @@ mod tests {
 
     #[test]
     fn target_square_iterator() {
-        let iterator = MovePatternIterator::new(
+        let iterator = BoardLineIterator::new(
             BoardPosition::try_from((6, 3)).unwrap(),
-            vec![
+            &[
                 BoardLine {
                     offset: (0, 1),
                     max_length: 3,
