@@ -63,25 +63,31 @@ impl<'a> Iterator for BoardLineIterator<'a> {
     type Item = TargetSquare;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut board_line = None;
-        while let Some(next) = self.lines.get(self.current_index) {
-            if next.max_length > self.current_line_length {
-                board_line = Some(next);
-                break;
+        while let Some(current_line) = self.lines.get(self.current_index) {
+            if self.current_line_length >= current_line.max_length {
+                self.current_index += 1;
+                self.current_line_length = 0;
+                continue;
             }
-            self.current_index += 1;
-            self.current_line_length = 0;
+            let pos = match self.origin.add((
+                current_line.offset.0 * (self.current_line_length + 1) as i8,
+                current_line.offset.1 * (self.current_line_length + 1) as i8,
+            )) {
+                Some(pos) => pos,
+                None => {
+                    // if already outside board, no other squares on this line can be inside the
+                    // board. skip to next line
+                    self.current_index += 1;
+                    continue;
+                },
+            };
+            self.current_line_length += 1;
+            return Some(TargetSquare {
+                position: pos,
+                capture_type: current_line.capture_type,
+            });
         }
-        let board_line = board_line?;
-        let pos = self.origin.add((
-              board_line.offset.0 * (self.current_line_length + 1) as i8,
-              board_line.offset.1 * (self.current_line_length + 1) as i8,
-        ))?;
-        self.current_line_length += 1;
-        Some(TargetSquare {
-            position: pos,
-            capture_type: board_line.capture_type,
-        })
+        None
     }
 }
 
@@ -134,7 +140,7 @@ mod tests {
             ]
         );
         let mut bitset = BoardBitmap::all_zeros();
-        let positions = iterator.for_each(|p| bitset.set(p.position, true));
+        iterator.for_each(|p| bitset.set(p.position, true));
         let mut expected_bitset = BoardBitmap::all_zeros();
         expected_bitset.set(BoardPosition::try_from((6, 4)).unwrap(), true);
         expected_bitset.set(BoardPosition::try_from((6, 5)).unwrap(), true);
