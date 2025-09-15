@@ -86,3 +86,22 @@ impl From<BoardPosition> for U6 {
         U6 { value: (x << 3) | y }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn u3_test() {
+        for i in 0x00..0xff {
+            assert_eq!(matches!(U3::new(i), None), i > 7);
+        }
+    }
+
+    #[test]
+    fn u6_test() {
+        for i in 0x00..0xff {
+            assert_eq!(matches!(U6::new(i), None), i > 63);
+        }
+    }
+}
