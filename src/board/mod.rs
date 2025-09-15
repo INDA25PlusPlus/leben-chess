@@ -166,7 +166,7 @@ impl Board {
                 if file >= 8 || rank >= 8 {
                     return None;
                 }
-                let pos = BoardPosition::try_from((file, rank)).unwrap();
+                let pos = BoardPosition::try_from((file, 7 - rank)).unwrap();
                 board.set_piece(pos, Some(piece));
                 file += 1;
             } else if let Some(digit) = ch.to_digit(10) {
@@ -254,7 +254,7 @@ mod tests {
             .into_iter()
             .take(20)
             .skip(6)
-            .map(|(pos, piece)| piece)
+            .map(|(_, piece)| piece)
             .collect();
         let expected = vec![
             Some(Piece { piece_type: Knight, player: White }),
@@ -284,14 +284,14 @@ mod tests {
         assert_eq!(Board::from_fen_string("8/8/8/8/8/8/8/8"), Some(Board::empty_board()));
         assert_eq!(
             Board::from_fen_string(concat!(
-                "RNBQKBNR/",
-                "PPPPPPPP/",
-                "8/",
-                "8/",
-                "8/",
-                "8/",
+                "rnbqkbnr/",
                 "pppppppp/",
-                "rnbqkbnr"
+                "8/",
+                "8/",
+                "8/",
+                "8/",
+                "PPPPPPPP/",
+                "RNBQKBNR"
             )),
             Some(Board::default_board())
         );
