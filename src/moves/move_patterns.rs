@@ -61,7 +61,7 @@ pub const KING_BOARD_LINES: &[BoardLine] = &[
 ];
 
 pub const WHITE_KING_CHECK_BOARD_LINES: &[(PieceType, &[BoardLine])] = &[
-    (PieceType::Pawn, BLACK_PAWN_BOARD_LINES),
+    (PieceType::Pawn, WHITE_PAWN_BOARD_LINES),
     (PieceType::Rook, ROOK_BOARD_LINES),
     (PieceType::Knight, KNIGHT_BOARD_LINES),
     (PieceType::Bishop, BISHOP_BOARD_LINES),
@@ -70,7 +70,7 @@ pub const WHITE_KING_CHECK_BOARD_LINES: &[(PieceType, &[BoardLine])] = &[
 ];
 
 pub const BLACK_KING_CHECK_BOARD_LINES: &[(PieceType, &[BoardLine])] = &[
-    (PieceType::Pawn, WHITE_PAWN_BOARD_LINES),
+    (PieceType::Pawn, BLACK_PAWN_BOARD_LINES),
     (PieceType::Rook, ROOK_BOARD_LINES),
     (PieceType::Knight, KNIGHT_BOARD_LINES),
     (PieceType::Bishop, BISHOP_BOARD_LINES),
