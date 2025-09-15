@@ -45,9 +45,19 @@ pub struct PieceMovement {
     pub to: BoardPosition,
 }
 
+impl TryFrom<((u8, u8), (u8, u8))> for PieceMovement {
+    type Error = ();
+    fn try_from(value: ((u8, u8), (u8, u8))) -> Result<Self, Self::Error> {
+        Ok(PieceMovement {
+            from: BoardPosition::try_from(value.0)?,
+            to: BoardPosition::try_from(value.1)?
+        })
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct ChessMove {
-    pub chess_move: PieceMovement,
+    pub piece_movement: PieceMovement,
     pub promotion: Option<PromotionType>,
 }
 
@@ -124,6 +134,22 @@ fn is_in_check(board: &Board, player: PlayerColor) -> bool {
     })
 }
 
+fn leads_to_check(board: &mut Board, active_player: PlayerColor, piece_movement: PieceMovement) -> bool {
+    let moved_piece = board.get_piece(piece_movement.from);
+    let replaced_piece = board.get_piece(piece_movement.to);
+
+    // test whether this move would put the active player in check
+    board.set_piece(piece_movement.from, None);
+    board.set_piece(piece_movement.to, moved_piece);
+    let in_check = is_in_check(board, active_player);
+
+    // undo move
+    board.set_piece(piece_movement.from, moved_piece);
+    board.set_piece(piece_movement.to, replaced_piece);
+
+    in_check
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +184,41 @@ mod tests {
         assert_eq!(is_in_check(&Board::from_fen_string(
             "8/8/2k5/8/2K5/8/4N3/8"
         ).unwrap(), PlayerColor::Black), false);
+    }
+
+    #[test]
+    fn leads_to_check_test() {
+        fn test_board(board: Board, active_player: PlayerColor, piece_movement: PieceMovement,
+                      expected_value: bool
+        ) {
+            let mut cloned_board = board.clone();
+            assert_eq!(leads_to_check(&mut cloned_board, active_player, piece_movement),
+                       expected_value);
+            assert_eq!(cloned_board, board);
+        }
+
+        test_board(Board::default_board(), PlayerColor::White,
+                   PieceMovement::try_from(((3, 1), (3, 3))).unwrap(), false);
+        test_board(Board::from_fen_string("rnbq1bnr/pppppppp/4k3/8/3P4/8/PPP1PPPP/RNBQKBNR")
+                       .unwrap(), PlayerColor::Black,
+                   PieceMovement::try_from(((4, 5), (4, 4))).unwrap(), true);
+        test_board(Board::from_fen_string("8/2b1n3/3R1r2/4K3/6k1/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((3, 5), (5, 5))).unwrap(), true);
+        test_board(Board::from_fen_string("8/2b1n3/2R2r2/4K3/6k1/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((2, 5), (5, 5))).unwrap(), true);
+        test_board(Board::from_fen_string("8/2b1n3/2R2r2/4K3/6k1/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((2, 5), (3, 5))).unwrap(), false);
+        test_board(Board::from_fen_string("8/2b1n3/2R2r2/4K3/5k2/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((2, 5), (3, 5))).unwrap(), true);
+        test_board(Board::from_fen_string("8/2b1n3/2R2r2/4K3/5k2/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((2, 5), (3, 5))).unwrap(), true);
+        test_board(Board::from_fen_string("8/2b1n3/3R1r2/4K3/5k2/8/8/8")
+                       .unwrap(), PlayerColor::White,
+                   PieceMovement::try_from(((0, 0), (0, 0))).unwrap(), true);
     }
 }
