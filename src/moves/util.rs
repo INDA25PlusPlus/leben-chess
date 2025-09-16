@@ -60,6 +60,10 @@ impl BoardBitmap {
     pub fn set(&mut self, index: BoardPosition, value: bool) {
         self.bitmap.set(index.into(), value)
     }
+
+    pub(crate) fn is_all_zeros(&self) -> bool {
+        self.bitmap.data == 0x0000_0000_0000_0000
+    }
 }
 
 impl Display for BoardBitmap {

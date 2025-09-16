@@ -31,7 +31,7 @@ impl Display for Board {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum OccupantState {
+pub(crate) enum OccupantState {
     Empty,
     Friendly,
     Enemy,
@@ -119,7 +119,7 @@ impl Board {
         *self.square_at_mut(pos) = piece;
     }
 
-    pub fn get_occupant_state(&self, pos: BoardPosition, active_player: PlayerColor) -> OccupantState {
+    pub(crate) fn get_occupant_state(&self, pos: BoardPosition, active_player: PlayerColor) -> OccupantState {
         match self.get_piece(pos) {
             None => OccupantState::Empty,
             Some(piece) => if piece.player == active_player {

@@ -24,6 +24,15 @@ pub enum PlayerColor {
     White, Black
 }
 
+impl PlayerColor {
+    pub fn other_player(&self) -> PlayerColor {
+        match self {
+            White => Black,
+            Black => White,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Piece {
     pub piece_type: PieceType,
@@ -49,7 +58,7 @@ impl Piece {
         }
     }
 
-    pub(crate) fn from_char(ch: char) -> Option<Piece> {
+    pub fn from_char(ch: char) -> Option<Piece> {
         match ch {
             'P' => Some(Piece { piece_type: Pawn, player: White }),
             'N' => Some(Piece { piece_type: Knight, player: White }),

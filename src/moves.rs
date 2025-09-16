@@ -1,6 +1,7 @@
 use crate::board::{Board, OccupantState};
 use crate::board::board_pos::{BoardPosition, BoardLineIterator, CaptureType};
 use crate::board::piece::{Piece, PieceType, PlayerColor};
+use crate::chess::ChessError;
 use crate::moves::util::BoardBitmap;
 
 pub mod util;
@@ -63,8 +64,8 @@ pub struct ChessMove {
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct CastlingRights {
-    queenside: bool,
-    kingside: bool,
+    pub queenside: bool,
+    pub kingside: bool,
 }
 
 impl Default for CastlingRights {
@@ -78,8 +79,8 @@ impl Default for CastlingRights {
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct MoveContext {
-    castling_rights: CastlingRights,
-    en_passant_target: Option<BoardPosition>,
+    pub castling_rights: CastlingRights,
+    pub en_passant_target: Option<BoardPosition>,
 }
 
 fn find_kings(board: &Board, active_player: PlayerColor) -> impl Iterator<Item=BoardPosition> {
@@ -93,7 +94,7 @@ fn find_kings(board: &Board, active_player: PlayerColor) -> impl Iterator<Item=B
         .map(|(pos, _)| pos)
 }
 
-fn is_in_check(board: &Board, player: PlayerColor) -> bool {
+pub(crate) fn is_in_check(board: &Board, player: PlayerColor) -> bool {
     find_kings(board, player).any(|pos| {
         let king_check_board_lines = match player {
             PlayerColor::White => move_patterns::WHITE_KING_CHECK_BOARD_LINES,
@@ -145,8 +146,31 @@ fn leads_to_check(board: &mut Board, active_player: PlayerColor,
     in_check
 }
 
-pub(crate) fn get_en_passant_pos(active_player: PlayerColor,
-                                 en_passant_target: BoardPosition) -> Option<BoardPosition>
+fn create_en_passant_target(active_player: PlayerColor,
+                            piece_movement: PieceMovement) -> Option<BoardPosition>
+{
+    let pawn_start_rank = match active_player {
+        PlayerColor::White => 1,
+        PlayerColor::Black => 6,
+    };
+    let double_move_rank = match active_player {
+        PlayerColor::White => 3,
+        PlayerColor::Black => 4,
+    };
+    if piece_movement.from.rank.get() == pawn_start_rank
+        && piece_movement.to.rank.get() == double_move_rank {
+        let offset = match active_player {
+            PlayerColor::White => (0, 1),
+            PlayerColor::Black => (0, -1),
+        };
+        piece_movement.from.add(offset)
+    } else {
+        None
+    }
+}
+
+fn get_en_passant_pos(active_player: PlayerColor,
+                      en_passant_target: BoardPosition) -> Option<BoardPosition>
 {
     let offset = match active_player {
         PlayerColor::White => (0, -1),
@@ -277,6 +301,7 @@ pub(crate) fn get_available_moves(board: &mut Board, active_player: PlayerColor,
 {
     let mut bitmap = BoardBitmap::all_zeros();
     if let Some(piece) = board.get_piece(pos) {
+        if piece.player != active_player { return bitmap; }
         let board_lines = move_patterns::get_board_lines(piece);
         let mut iter = BoardLineIterator::new(pos, board_lines);
         while let Some(target_square) = iter.next() {
@@ -346,18 +371,36 @@ pub(crate) fn get_available_moves(board: &mut Board, active_player: PlayerColor,
     bitmap
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct MoveResult {
+    pub captured_piece: Option<Piece>,
+    pub new_en_passant_target: Option<BoardPosition>,
+    pub removes_queenside_castling_rights: bool,
+    pub removes_kingside_castling_rights: bool,
+}
+
 /// Performs a chess move without checking whether the move is legal, taking into consideration
 /// en passant, castling and promotion rules.
 ///
-/// returns: `Option<Piece>`
+/// returns: `Result<MoveResult, ChessError>`
 pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move: ChessMove,
-                      move_context: MoveContext) -> Option<Piece>
+                      move_context: MoveContext) -> Result<MoveResult, ChessError>
 {
-    let mut captured_piece = None;
+    let mut result = MoveResult {
+        captured_piece: None,
+        new_en_passant_target: None,
+        removes_queenside_castling_rights: false,
+        removes_kingside_castling_rights: false,
+    };
     if let Some(moved_piece) = board.get_piece(chess_move.piece_movement.from) {
-        captured_piece = board.get_piece(chess_move.piece_movement.to);
+        result.captured_piece = board.get_piece(chess_move.piece_movement.to);
         board.set_piece(chess_move.piece_movement.from, None);
         board.set_piece(chess_move.piece_movement.to, Some(moved_piece));
+        if !matches!(moved_piece.piece_type, PieceType::Pawn)
+            && matches!(chess_move.promotion, Some(_))
+        {
+            return Err(ChessError::UnexpectedPromotionType);
+        }
         match moved_piece.piece_type {
             PieceType::Pawn => {
                 // capture en passant
@@ -366,21 +409,35 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
                         if let Some(en_passant_pos) = get_en_passant_pos(active_player,
                                                                          en_passant_target)
                         {
-                            captured_piece = board.get_piece(en_passant_pos);
+                            result.captured_piece = board.get_piece(en_passant_pos);
                             board.set_piece(en_passant_pos, None);
                         }
                     }
-
                 }
+
+                // double move creates en passant target
+                result.new_en_passant_target = create_en_passant_target(active_player, chess_move.piece_movement);
+
                 // promotion
-                dbg!(chess_move);
-                if let Some(promotion) = chess_move.promotion {
-                    board.set_piece(
-                        chess_move.piece_movement.to,
-                        Some(Piece {
-                            piece_type: promotion.into(), player: active_player
-                        })
-                    );
+                let promotion_rank = match active_player {
+                    PlayerColor::White => 7,
+                    PlayerColor::Black => 0,
+                };
+                if chess_move.piece_movement.to.rank.get() == promotion_rank {
+                    if let Some(promotion) = chess_move.promotion {
+                        board.set_piece(
+                            chess_move.piece_movement.to,
+                            Some(Piece {
+                                piece_type: promotion.into(), player: active_player
+                            })
+                        );
+                    } else {
+                        return Err(ChessError::MissingPromotionType);
+                    }
+                } else {
+                    if matches!(chess_move.promotion, Some(_)) {
+                        return Err(ChessError::UnexpectedPromotionType);
+                    }
                 }
             }
             PieceType::King => {
@@ -411,12 +468,26 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
                     board.set_piece(rook_from, None);
                     board.set_piece(rook_to, rook);
                 }
+                result.removes_queenside_castling_rights = true;
+                result.removes_kingside_castling_rights = true;
+            }
+            PieceType::Rook => {
+                let rank = match active_player {
+                    PlayerColor::White => 0,
+                    PlayerColor::Black => 7,
+                };
+                if chess_move.piece_movement.from == BoardPosition::try_from((0, rank)).unwrap() {
+                    result.removes_queenside_castling_rights;
+                }
+                if chess_move.piece_movement.from == BoardPosition::try_from((7, rank)).unwrap() {
+                    result.removes_kingside_castling_rights;
+                }
             }
             _ => {}
         }
 
     }
-    captured_piece
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -807,12 +878,13 @@ mod tests {
                 to: BoardPosition::try_from(to).unwrap(),
             };
             let en_passant_target = en_passant_target.map(|s| BoardPosition::try_from(s).unwrap());
-            let captured_piece = do_move(
+            let move_result = do_move(
                 &mut board,
                 active_player,
                 ChessMove { piece_movement, promotion },
                 MoveContext { castling_rights: CastlingRights::default(), en_passant_target }
-            );
+            ).unwrap();
+            let captured_piece = move_result.captured_piece;
             assert_eq!(
                 board, expected,
                 "from: {}, to: {},\nbefore: {},\nexpected: {},\ngot: {}",

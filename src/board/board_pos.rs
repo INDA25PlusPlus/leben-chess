@@ -54,7 +54,7 @@ impl Display for BoardPosition {
 }
 
 impl BoardPosition {
-    pub fn add(&self, offset: (i8, i8)) -> Option<BoardPosition> {
+    pub(crate) fn add(&self, offset: (i8, i8)) -> Option<BoardPosition> {
         let file = self.file.get() as i8 + offset.0;
         let rank = self.rank.get() as i8 + offset.1;
         if file < 0 || rank < 0 {
