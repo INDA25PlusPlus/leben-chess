@@ -112,6 +112,7 @@ impl<'a> Iterator for BoardLineIterator<'a> {
                     // if already outside board, no other squares on this line can be inside the
                     // board. skip to next line
                     self.current_index += 1;
+                    self.current_line_length = 0;
                     continue;
                 },
             };
