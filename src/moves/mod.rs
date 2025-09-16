@@ -150,6 +150,70 @@ fn leads_to_check(board: &mut Board, active_player: PlayerColor, piece_movement:
     in_check
 }
 
+pub(crate) fn get_en_passant_pos(active_player: PlayerColor,
+                                 en_passant_target: BoardPosition) -> Option<BoardPosition>
+{
+    let offset = match active_player {
+        PlayerColor::White => (0, -1),
+        PlayerColor::Black => (0, 1),
+    };
+    en_passant_target.add(offset)
+}
+
+fn is_first_move_pawn(active_player: PlayerColor,
+                      pos: BoardPosition) -> Option<(BoardPosition, BoardPosition)>
+{
+    match active_player {
+        PlayerColor::White => if pos.rank.get() == 1 {
+            Some((pos.add((0, 1)).unwrap(), pos.add((0, 2)).unwrap()))
+        } else { None },
+        PlayerColor::Black => if pos.rank.get() == 6 {
+            Some((pos.add((0, -1)).unwrap(), pos.add((0, -2)).unwrap()))
+        } else { None },
+    }
+}
+
+fn add_en_passant_moves(board: &mut Board, active_player: PlayerColor, pos: BoardPosition,
+                        en_passant_target: BoardPosition, bitmap: &mut BoardBitmap)
+{
+    // check that the target square is actually capturable by the pawn
+    let capture_offsets = match active_player {
+        PlayerColor::White => ((-1, 1), (1, 1)),
+        PlayerColor::Black => ((-1, -1), (1, -1)),
+    };
+    let capture_squares = (
+        pos.add(capture_offsets.0),
+        pos.add(capture_offsets.1)
+    );
+    if Some(en_passant_target) != capture_squares.0 && Some(en_passant_target) != capture_squares.1 {
+        return;
+    }
+
+    let en_passanted_pos = match get_en_passant_pos(active_player, en_passant_target) {
+        Some(pos) => pos,
+        None => return
+    };
+
+    // check for the special case where the captured pawn blocked check
+    let moved_piece = board.get_piece(pos);
+    let destination_piece = board.get_piece(en_passant_target);
+    let en_passanted_piece = board.get_piece(en_passanted_pos);
+
+    board.set_piece(pos, None);
+    board.set_piece(en_passant_target, moved_piece);
+    board.set_piece(en_passanted_pos, None);
+
+    // if move is legal, add to bitmap
+    if !is_in_check(board, active_player) {
+        bitmap.set(en_passant_target, true);
+    }
+
+    // undo move
+    board.set_piece(pos, moved_piece);
+    board.set_piece(en_passant_target, destination_piece);
+    board.set_piece(en_passanted_pos, en_passanted_piece);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
