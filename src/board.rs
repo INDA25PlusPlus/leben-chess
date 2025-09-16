@@ -13,7 +13,10 @@ impl Display for Board {
         for rank in (0u8..8).rev() {
             write!(f, "\n{}", rank + 1)?;
             for file in 0u8..8 {
-                let pos = BoardPosition { file: file.try_into().unwrap(), rank: rank.try_into().unwrap() };
+                let pos = BoardPosition {
+                    file: file.try_into().unwrap(),
+                    rank: rank.try_into().unwrap()
+                };
                 let piece = self.get_piece(pos);
                 if let Some(piece) = piece {
                     write!(f, " {}", piece.get_char())?;
