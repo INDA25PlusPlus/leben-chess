@@ -39,7 +39,7 @@ impl TryFrom<PieceType> for PromotionType {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PieceMovement {
     pub from: BoardPosition,
     pub to: BoardPosition,
@@ -59,13 +59,6 @@ impl TryFrom<((u8, u8), (u8, u8))> for PieceMovement {
 pub struct ChessMove {
     pub piece_movement: PieceMovement,
     pub promotion: Option<PromotionType>,
-}
-
-#[derive(Clone, Debug)]
-pub enum AvailableMovesResult {
-    Ok(BoardBitmap),
-    Stalemate,
-    Checkmate,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -351,6 +344,79 @@ pub(crate) fn get_available_moves(board: &mut Board, active_player: PlayerColor,
         }
     }
     bitmap
+}
+
+/// Performs a chess move without checking whether the move is legal, taking into consideration
+/// en passant, castling and promotion rules.
+///
+/// returns: `Option<Piece>`
+pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move: ChessMove,
+                      move_context: MoveContext) -> Option<Piece>
+{
+    let mut captured_piece = None;
+    if let Some(moved_piece) = board.get_piece(chess_move.piece_movement.from) {
+        captured_piece = board.get_piece(chess_move.piece_movement.to);
+        board.set_piece(chess_move.piece_movement.from, None);
+        board.set_piece(chess_move.piece_movement.to, Some(moved_piece));
+        match moved_piece.piece_type {
+            PieceType::Pawn => {
+                // capture en passant
+                if let Some(en_passant_target) = move_context.en_passant_target {
+                    if chess_move.piece_movement.to == en_passant_target {
+                        if let Some(en_passant_pos) = get_en_passant_pos(active_player,
+                                                                         en_passant_target)
+                        {
+                            captured_piece = board.get_piece(en_passant_pos);
+                            board.set_piece(en_passant_pos, None);
+                        }
+                    }
+
+                }
+                // promotion
+                dbg!(chess_move);
+                if let Some(promotion) = chess_move.promotion {
+                    board.set_piece(
+                        chess_move.piece_movement.to,
+                        Some(Piece {
+                            piece_type: promotion.into(), player: active_player
+                        })
+                    );
+                }
+            }
+            PieceType::King => {
+                let rank = match active_player {
+                    PlayerColor::White => 0,
+                    PlayerColor::Black => 7,
+                };
+                let (queenside_move, kingside_move) = (
+                    PieceMovement {
+                        from: BoardPosition::try_from((4, rank)).unwrap(),
+                        to: BoardPosition::try_from((2, rank)).unwrap(),
+                    },
+                    PieceMovement {
+                        from: BoardPosition::try_from((4, rank)).unwrap(),
+                        to: BoardPosition::try_from((6, rank)).unwrap(),
+                    },
+                );
+                if chess_move.piece_movement == queenside_move {
+                    let rook_from = BoardPosition::try_from((0, rank)).unwrap();
+                    let rook_to = BoardPosition::try_from((3, rank)).unwrap();
+                    let rook = board.get_piece(rook_from);
+                    board.set_piece(rook_from, None);
+                    board.set_piece(rook_to, rook);
+                } else if chess_move.piece_movement == kingside_move {
+                    let rook_from = BoardPosition::try_from((7, rank)).unwrap();
+                    let rook_to = BoardPosition::try_from((5, rank)).unwrap();
+                    let rook = board.get_piece(rook_from);
+                    board.set_piece(rook_from, None);
+                    board.set_piece(rook_to, rook);
+                }
+            }
+            _ => {}
+        }
+
+    }
+    captured_piece
 }
 
 #[cfg(test)]
@@ -725,5 +791,92 @@ mod tests {
             PlayerColor::Black, "e8", None,
             &["d8", "d7", "e7", "f7", "f8", "c8"],
         );
+    }
+
+    #[test]
+    fn do_move_test() {
+        fn test_board(board_before: &str, board_after: &str, active_player: PlayerColor, from: &str,
+                      to: &str, captured_piece_expected: Option<char>,
+                      en_passant_target: Option<&str>, promotion: Option<PromotionType>)
+        {
+            let before = Board::from_fen_string(board_before).unwrap();
+            let mut board = before.clone();
+            let expected = Board::from_fen_string(board_after).unwrap();
+            let piece_movement = PieceMovement {
+                from: BoardPosition::try_from(from).unwrap(),
+                to: BoardPosition::try_from(to).unwrap(),
+            };
+            let en_passant_target = en_passant_target.map(|s| BoardPosition::try_from(s).unwrap());
+            let captured_piece = do_move(
+                &mut board,
+                active_player,
+                ChessMove { piece_movement, promotion },
+                MoveContext { castling_rights: CastlingRights::default(), en_passant_target }
+            );
+            assert_eq!(
+                board, expected,
+                "from: {}, to: {},\nbefore: {},\nexpected: {},\ngot: {}",
+                from,
+                to,
+                before,
+                expected,
+                board,
+            );
+            assert_eq!(
+                captured_piece,
+                captured_piece_expected.map(|s| Piece::from_char(s).unwrap()),
+            );
+        }
+
+        test_board(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR",
+            PlayerColor::White, "e2", "e4", None, None, None);
+        test_board(
+            "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR",
+            "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR",
+            PlayerColor::White, "e4", "d5", Some('p'), None, None);
+
+        // en passant
+        test_board(
+            "r3k1nr/pppq1ppp/2n5/3pP3/3Pp3/2N5/PPPQ1PPP/R3KB1R",
+            "r3k1nr/pppq1ppp/2nP4/8/3Pp3/2N5/PPPQ1PPP/R3KB1R",
+            PlayerColor::White, "e5", "d6", Some('p'), Some("d6"), None);
+
+        // promotion
+        test_board(
+            "8/k5P1/8/8/8/8/8/K7",
+            "6N1/k7/8/8/8/8/8/K7",
+            PlayerColor::White, "g7", "g8", None, None, Some(PromotionType::Knight));
+        test_board(
+            "8/k5P1/8/8/8/8/8/K7",
+            "6B1/k7/8/8/8/8/8/K7",
+            PlayerColor::White, "g7", "g8", None, None, Some(PromotionType::Bishop));
+        test_board(
+            "8/k5P1/8/8/8/8/8/K7",
+            "6R1/k7/8/8/8/8/8/K7",
+            PlayerColor::White, "g7", "g8", None, None, Some(PromotionType::Rook));
+        test_board(
+            "8/k5P1/8/8/8/8/8/K7",
+            "6Q1/k7/8/8/8/8/8/K7",
+            PlayerColor::White, "g7", "g8", None, None, Some(PromotionType::Queen));
+
+        // castling
+        test_board(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R",
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQ1RK1",
+            PlayerColor::White, "e1", "g1", None, None, None);
+        test_board(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R3KBNR",
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/2KR1BNR",
+            PlayerColor::White, "e1", "c1", None, None, None);
+        test_board(
+            "rnbqk2r/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+            "rnbq1rk1/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+            PlayerColor::Black, "e8", "g8", None, None, None);
+        test_board(
+            "r3kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+            "2kr1bnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+            PlayerColor::Black, "e8", "c8", None, None, None);
     }
 }
