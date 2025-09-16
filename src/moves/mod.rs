@@ -214,6 +214,69 @@ fn add_en_passant_moves(board: &mut Board, active_player: PlayerColor, pos: Boar
     board.set_piece(en_passanted_pos, en_passanted_piece);
 }
 
+fn add_castling_moves(board: &mut Board, active_player: PlayerColor,
+                      castling_rights: CastlingRights, bitmap: &mut BoardBitmap)
+{
+    if is_in_check(&board, active_player) {
+        return;
+    }
+    let mut add_on_side = |rook_pos: BoardPosition, king_moves_from: BoardPosition,
+                           king_moves_to: BoardPosition, must_be_empty: &[BoardPosition],
+                           passes_through: &[BoardPosition]|
+    {
+        let piece = if let Some(piece) = board.get_piece(rook_pos) {
+            piece
+        } else {
+            return;
+        };
+        if !matches!(piece.piece_type, PieceType::Rook) { return; }
+        for square in must_be_empty {
+            if !matches!(board.get_piece(*square), None) { return; }
+        }
+        for square in passes_through {
+            if leads_to_check(board, active_player,
+                              PieceMovement { from: king_moves_from, to: *square })
+            {
+                return;
+            }
+        }
+        bitmap.set(king_moves_to, true);
+    };
+
+    let rank = match active_player {
+        PlayerColor::White => 0,
+        PlayerColor::Black => 7,
+    };
+    let king_moves_from = BoardPosition::try_from((4, rank)).unwrap();
+    if castling_rights.queenside {
+        let rook_pos = BoardPosition::try_from((0, rank)).unwrap();
+        let king_moves_to = BoardPosition::try_from((2, rank)).unwrap();
+        let must_be_empty = &[
+            BoardPosition::try_from((1, rank)).unwrap(),
+            BoardPosition::try_from((2, rank)).unwrap(),
+            BoardPosition::try_from((3, rank)).unwrap(),
+        ];
+        let passes_through = &[
+            BoardPosition::try_from((2, rank)).unwrap(),
+            BoardPosition::try_from((3, rank)).unwrap(),
+        ];
+        add_on_side(rook_pos, king_moves_from, king_moves_to, must_be_empty, passes_through);
+    }
+    if castling_rights.kingside {
+        let rook_pos = BoardPosition::try_from((7, rank)).unwrap();
+        let king_moves_to = BoardPosition::try_from((6, rank)).unwrap();
+        let must_be_empty = &[
+            BoardPosition::try_from((5, rank)).unwrap(),
+            BoardPosition::try_from((6, rank)).unwrap(),
+        ];
+        let passes_through = &[
+            BoardPosition::try_from((5, rank)).unwrap(),
+            BoardPosition::try_from((6, rank)).unwrap(),
+        ];
+        add_on_side(rook_pos, king_moves_from, king_moves_to, must_be_empty, passes_through);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
