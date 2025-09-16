@@ -134,7 +134,9 @@ fn is_in_check(board: &Board, player: PlayerColor) -> bool {
     })
 }
 
-fn leads_to_check(board: &mut Board, active_player: PlayerColor, piece_movement: PieceMovement) -> bool {
+fn leads_to_check(board: &mut Board, active_player: PlayerColor,
+                  piece_movement: PieceMovement) -> bool
+{
     let moved_piece = board.get_piece(piece_movement.from);
     let replaced_piece = board.get_piece(piece_movement.to);
 
@@ -277,6 +279,80 @@ fn add_castling_moves(board: &mut Board, active_player: PlayerColor,
     }
 }
 
+pub(crate) fn get_available_moves(board: &mut Board, active_player: PlayerColor, pos: BoardPosition,
+                                  move_context: MoveContext) -> BoardBitmap
+{
+    let mut bitmap = BoardBitmap::all_zeros();
+    if let Some(piece) = board.get_piece(pos) {
+        let board_lines = move_patterns::get_board_lines(piece);
+        let mut iter = BoardLineIterator::new(pos, board_lines);
+        while let Some(target_square) = iter.next() {
+            match board.get_occupant_state(target_square.position, active_player) {
+                OccupantState::Empty => if matches!(
+                    target_square.capture_type,
+                    CaptureType::Normal | CaptureType::MoveOnly
+                ) {
+                    bitmap.set(target_square.position, true);
+                },
+                OccupantState::Friendly => {
+                    iter.skip_line()
+                },
+                OccupantState::Enemy => if matches!(
+                    target_square.capture_type,
+                    CaptureType::Normal | CaptureType::CaptureOnly
+                ) {
+                    bitmap.set(target_square.position, true);
+                    iter.skip_line();
+                },
+            }
+        }
+        match piece.piece_type {
+            PieceType::Pawn => {
+                if let Some(en_passant_target) = move_context.en_passant_target {
+                    add_en_passant_moves(board, active_player, pos, en_passant_target, &mut bitmap);
+                }
+                if let Some((forward_move_pos, double_move_pos)) =
+                    is_first_move_pawn(active_player, pos)
+                {
+                    let occupant_forward = board.get_occupant_state(
+                        forward_move_pos,
+                        active_player);
+                    let occupant_double_move = board.get_occupant_state(
+                        double_move_pos,
+                        active_player);
+                    match (occupant_forward, occupant_double_move) {
+                        (OccupantState::Empty, OccupantState::Empty)
+                            => bitmap.set(double_move_pos, true),
+                        _ => {}
+                    }
+                }
+            }
+            PieceType::King => add_castling_moves(board, active_player,
+                                                  move_context.castling_rights, &mut bitmap),
+            _ => {}
+        }
+    } else {
+        return bitmap;
+    }
+    for file in 0..8 {
+        for rank in 0..8 {
+            let move_to = BoardPosition::try_from((file, rank)).unwrap();
+            if bitmap.get(move_to) {
+                let leads_to_check = leads_to_check(
+                    board, active_player,
+                    PieceMovement {
+                        from: pos,
+                        to: move_to,
+                    });
+                if leads_to_check {
+                    bitmap.set(move_to, false);
+                }
+            }
+        }
+    }
+    bitmap
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,8 +392,8 @@ mod tests {
     #[test]
     fn leads_to_check_test() {
         fn test_board(board: Board, active_player: PlayerColor, piece_movement: PieceMovement,
-                      expected_value: bool
-        ) {
+                      expected_value: bool)
+        {
             let mut cloned_board = board.clone();
             assert_eq!(leads_to_check(&mut cloned_board, active_player, piece_movement),
                        expected_value);
@@ -347,5 +423,307 @@ mod tests {
         test_board(Board::from_fen_string("8/2b1n3/3R1r2/4K3/5k2/8/8/8")
                        .unwrap(), PlayerColor::White,
                    PieceMovement::try_from(((0, 0), (0, 0))).unwrap(), true);
+    }
+
+    #[test]
+    fn get_available_moves_test() {
+        fn test_board(mut board: Board, active_player: PlayerColor, pos: &str,
+                      move_context: Option<MoveContext>, squares: &[&str])
+        {
+            let pos = BoardPosition::try_from(pos).unwrap();
+            let move_context = move_context.unwrap_or(MoveContext {
+                castling_rights: CastlingRights::default(),
+                en_passant_target: None,
+            });
+            let mut bitmap = BoardBitmap::all_zeros();
+            for square in squares {
+                let square = BoardPosition::try_from(*square).unwrap();
+                bitmap.set(BoardPosition::try_from(square).unwrap(), true);
+            }
+            let available_moves = get_available_moves(&mut board, active_player,
+                                                      BoardPosition::try_from(pos).unwrap(),
+                                                      move_context);
+            assert_eq!(
+                available_moves,
+                bitmap,
+                "piece: {},\nboard: {},\nexpected: {}\ngot: {}",
+                pos,
+                board,
+                bitmap,
+                available_moves,
+            );
+        }
+
+        test_board(Board::default_board(), PlayerColor::White, "e1", None, &[]);
+
+        // position r1bqk2r/pppp1ppp/5n2/4p3/1b2P3/2NP1Q1P/PPPB1PP1/R3KB1R
+        let board_1 = Board::from_fen_string(
+            "r1bqk2r/pppp1ppp/5n2/4p3/1b2P3/2NP1Q1P/PPPB1PP1/R3KB1R"
+        ).unwrap();
+        test_board(board_1.clone(), PlayerColor::White, "a1", None,
+                   &["b1", "c1", "d1"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "e1", None,
+                   &["c1", "d1", "e2"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "f1", None,
+                   &["e2"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "h1", None,
+                   &["g1", "h2"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "a2", None,
+                   &["a3", "a4"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "b2", None,
+                   &["b3"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "c2", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "d2", None,
+                   &["c1", "e3", "f4", "g5", "h6"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "f2", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "g2", None,
+                   &["g3", "g4"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "c3", None,
+                   &["b1", "d1", "e2", "a4", "b5", "d5"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "d3", None,
+                   &["d4"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "f3", None,
+                   &["d1", "e2", "e3", "g3", "f4", "g4", "f5", "h5", "f6"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "h3", None,
+                   &["h4"],
+        );
+        test_board(board_1.clone(), PlayerColor::White, "e4", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "b4", None,
+                   &["a3", "c3", "a5", "c5", "d6", "e7", "f8"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "e5", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "f6", None,
+                   &["e4", "g4", "d5", "h5", "g8"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "a7", None,
+                   &["a6", "a5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "b7", None,
+                   &["b6", "b5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "c7", None,
+                   &["c6", "c5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "d7", None,
+                   &["d6", "d5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "f7", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "g7", None,
+                   &["g6", "g5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "h7", None,
+                   &["h6", "h5"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "a8", None,
+                   &["b8"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "c8", None,
+                   &[],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "d8", None,
+                   &["e7"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "e8", None,
+                   &["f8", "g8", "e7"],
+        );
+        test_board(board_1.clone(), PlayerColor::Black, "h8", None,
+                   &["f8", "g8"],
+        );
+
+        // position r3k1nr/pppq1ppp/2n5/3pP3/3Pp3/2N5/PPPQ1PPP/R3KB1R
+        let board_2 = Board::from_fen_string(
+            "r3k1nr/pppq1ppp/2n5/3pP3/3Pp3/2N5/PPPQ1PPP/R3KB1R"
+        ).unwrap();
+        let context_2 = Some(MoveContext {
+            castling_rights: CastlingRights::default(),
+            en_passant_target: Some(BoardPosition::try_from("d6").unwrap()),
+        });
+        test_board(board_2.clone(), PlayerColor::White, "a1", context_2,
+                   &["b1", "c1", "d1"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "e1", context_2,
+                   &["c1", "d1", "e2"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "f1", context_2,
+                   &["e2", "d3", "c4", "b5", "a6"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "h1", context_2,
+                   &["g1"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "a2", context_2,
+                   &["a3", "a4"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "b2", context_2,
+                   &["b3", "b4"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "c2", context_2,
+                   &[],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "d2", context_2,
+                   &["c1", "d1", "e2", "d3", "e3", "f4", "g5", "h6"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "f2", context_2,
+                   &["f3", "f4"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "g2", context_2,
+                   &["g3", "g4"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "h2", context_2,
+                   &["h3", "h4"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "c3", context_2,
+                   &["b1", "d1", "e2", "a4", "e4", "b5", "d5"],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "d4", context_2,
+                   &[],
+        );
+        test_board(board_2.clone(), PlayerColor::White, "e5", context_2,
+                   &["d6", "e6"],
+        );
+
+        // en passant
+        test_board(
+            Board::from_fen_string("k7/8/8/8/8/4Pp2/8/K7").unwrap(),
+            PlayerColor::Black, "f3", Some(MoveContext {
+                castling_rights: Default::default(),
+                en_passant_target: Some(BoardPosition::try_from("e2").unwrap()),
+            }),
+            &["e2", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("8/8/8/8/8/3RPpk1/8/K7").unwrap(),
+            PlayerColor::Black, "f3", Some(MoveContext {
+                castling_rights: Default::default(),
+                en_passant_target: Some(BoardPosition::try_from("e2").unwrap()),
+            }),
+            &["f2"],
+        );
+        test_board(
+            Board::from_fen_string("8/8/8/8/8/4Ppk1/6R1/K7").unwrap(),
+            PlayerColor::Black, "f3", Some(MoveContext {
+                castling_rights: Default::default(),
+                en_passant_target: Some(BoardPosition::try_from("e2").unwrap()),
+            }),
+            &["g2"],
+        );
+
+        // normal castling
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3K3").unwrap(),
+            PlayerColor::White, "e1", Some(MoveContext {
+                castling_rights: CastlingRights {
+                    queenside: false,
+                    kingside: false,
+                },
+                en_passant_target: None,
+            }),
+            &["d1", "d2", "e2", "f1", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3K3").unwrap(),
+            PlayerColor::White, "e1", Some(MoveContext {
+                castling_rights: CastlingRights {
+                    queenside: true,
+                    kingside: false,
+                },
+                en_passant_target: None,
+            }),
+            &["c1", "d1", "d2", "e2", "f1", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3K3").unwrap(),
+            PlayerColor::White, "e1", Some(MoveContext {
+                castling_rights: CastlingRights {
+                    queenside: false,
+                    kingside: true,
+                },
+                en_passant_target: None,
+            }),
+            &["d1", "d2", "e2", "f1", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3K3").unwrap(),
+            PlayerColor::White, "e1", Some(MoveContext {
+                castling_rights: CastlingRights {
+                    queenside: true,
+                    kingside: true,
+                },
+                en_passant_target: None,
+            }),
+            &["c1", "d1", "d2", "e2", "f1", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R2QK2R").unwrap(),
+            PlayerColor::White, "e1", None,
+            &["d2", "e2", "f1", "f2", "g1"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R1B1K2R").unwrap(),
+            PlayerColor::White, "e1", None,
+            &["d1", "d2", "e2", "f1", "f2", "g1"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/RN2K2R").unwrap(),
+            PlayerColor::White, "e1", None,
+            &["d1", "d2", "e2", "f1", "f2", "g1"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3KB1R").unwrap(),
+            PlayerColor::White, "e1", None,
+            &["c1", "d1", "d2", "e2", "f2"],
+        );
+        test_board(
+            Board::from_fen_string("4k3/8/8/8/8/8/8/R3K1NR").unwrap(),
+            PlayerColor::White, "e1", None,
+            &["c1", "d1", "d2", "e2", "f1", "f2"],
+        );
+
+        // castle through check
+        test_board(
+            Board::from_fen_string("r3k3/8/8/8/8/8/8/K4R2").unwrap(),
+            PlayerColor::Black, "e8", None,
+            &["d8", "d7", "e7", "c8"],
+        );
+        test_board(
+            Board::from_fen_string("r3k3/8/8/8/8/8/8/K3R3").unwrap(),
+            PlayerColor::Black, "e8", None,
+            &["d8", "d7", "f8", "f7"],
+        );
+        test_board(
+            Board::from_fen_string("r3k3/8/8/8/8/8/8/K2R4").unwrap(),
+            PlayerColor::Black, "e8", None,
+            &["e7", "f7", "f8"],
+        );
+        test_board(
+            Board::from_fen_string("r3k3/8/8/8/8/8/8/K1R5").unwrap(),
+            PlayerColor::Black, "e8", None,
+            &["d8", "d7", "e7", "f7", "f8"],
+        );
+        test_board(
+            Board::from_fen_string("r3k3/8/8/8/8/8/8/KR6").unwrap(),
+            PlayerColor::Black, "e8", None,
+            &["d8", "d7", "e7", "f7", "f8", "c8"],
+        );
     }
 }
