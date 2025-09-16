@@ -1,3 +1,4 @@
+use thiserror::Error;
 use crate::board::Board;
 use crate::board::board_pos::BoardPosition;
 use crate::board::piece::PlayerColor;
@@ -29,6 +30,7 @@ pub struct ChessGame {
     active_player: PlayerColor,
 
     board: Board,
+    available_moves: [[BoardBitmap; 8]; 8],
     castling_rights: (CastlingRights, CastlingRights),
     en_passant_target: Option<BoardPosition>,
 }
@@ -51,13 +53,16 @@ pub enum ChessError {
 
 impl ChessGame {
     pub fn new(starting_board: Board) -> ChessGame {
-        ChessGame {
+        let mut game = ChessGame {
             game_status: GameStatus::NotYetStarted,
             active_player: PlayerColor::White,
             board: starting_board,
+            available_moves: [[BoardBitmap::all_zeros(); 8]; 8],
             castling_rights: (CastlingRights::default(), CastlingRights::default()),
             en_passant_target: None,
-        }
+        };
+        game.recalculate_available_moves();
+        game
     }
 
     pub fn game_status(&self) -> &GameStatus {
@@ -119,5 +124,21 @@ impl ChessGame {
             castling_rights: self.castling_rights(self.active_player),
             en_passant_target: self.en_passant_target,
         }
+    }
+
+    fn recalculate_available_moves(&mut self) {
+        for file in 0..8 {
+            for rank in 0..8 {
+                let pos = BoardPosition::try_from((file, rank)).unwrap();
+                let move_context = self.move_context();
+                let bitmap = moves::get_available_moves(&mut self.board, self.active_player, pos,
+                                                        move_context);
+                self.available_moves[file as usize][rank as usize] = bitmap;
+            }
+        }
+    }
+
+    pub fn available_moves(&mut self, pos: BoardPosition) -> BoardBitmap {
+        self.available_moves[pos.file.get() as usize][pos.rank.get() as usize]
     }
 }
