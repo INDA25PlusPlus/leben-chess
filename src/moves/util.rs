@@ -65,14 +65,14 @@ impl BoardBitmap {
 impl Display for BoardBitmap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for rank in (0u8..8).rev() {
-            write!(f, "\n{} ", rank + 1)?;
+            write!(f, "\n{}", rank + 1)?;
             for file in 0u8..8 {
                 let pos = BoardPosition::try_from((file, rank)).unwrap().into();
                 let value = self.bitmap.get(pos);
-                write!(f, "{}", if value { "1" } else { "0" })?;
+                write!(f, " {}", if value { "1" } else { "0" })?;
             }
         }
-        write!(f, "\n  abcdefgh")?;
+        write!(f, "\n  a b c d e f g h")?;
         Ok(())
     }
 }
@@ -118,15 +118,15 @@ mod tests {
 
         let expected = concat!(
             "\n",
-            "8 01100000\n",
-            "7 00000000\n",
-            "6 00010000\n",
-            "5 00000001\n",
-            "4 10000000\n",
-            "3 00000000\n",
-            "2 00000100\n",
-            "1 00010100\n",
-            "  abcdefgh",
+            "8 0 1 1 0 0 0 0 0\n",
+            "7 0 0 0 0 0 0 0 0\n",
+            "6 0 0 0 1 0 0 0 0\n",
+            "5 0 0 0 0 0 0 0 1\n",
+            "4 1 0 0 0 0 0 0 0\n",
+            "3 0 0 0 0 0 0 0 0\n",
+            "2 0 0 0 0 0 1 0 0\n",
+            "1 0 0 0 1 0 1 0 0\n",
+            "  a b c d e f g h",
         ).to_string();
         assert_eq!(format!("{}", bitmap), expected);
     }
