@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::util::U3;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -16,6 +17,39 @@ impl TryFrom<(u8, u8)> for BoardPosition {
     type Error = ();
     fn try_from(value: (u8, u8)) -> Result<Self, Self::Error> {
         Ok(BoardPosition { file: value.0.try_into()?, rank: value.1.try_into()? })
+    }
+}
+
+impl TryFrom<&str> for BoardPosition {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.as_bytes();
+        if value.len() != 2 { return Err(()); }
+        let file = match value[0] {
+            b'a' | b'A' => 0,
+            b'b' | b'B' => 1,
+            b'c' | b'C' => 2,
+            b'd' | b'D' => 3,
+            b'e' | b'E' => 4,
+            b'f' | b'F' => 5,
+            b'g' | b'G' => 6,
+            b'h' | b'H' => 7,
+            _ => return Err(()),
+        };
+        let rank = if let Some(rank) = (value[1] as char).to_digit(10)
+            { rank } else { return Err(()); };
+        let rank = if rank > 0 { rank - 1 } else { return Err(()); };
+        BoardPosition::try_from((file, rank as u8))
+    }
+}
+
+impl Display for BoardPosition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let files = b"abcdefgh";
+        let ranks = b"12345678";
+        let file = files[self.file.get() as usize] as char;
+        let rank = ranks[self.rank.get() as usize] as char;
+        write!(f, "{}{}", file, rank)
     }
 }
 
