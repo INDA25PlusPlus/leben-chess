@@ -1,3 +1,5 @@
+//! Functions and types for determining, querying and performing legal chess moves.
+
 use crate::board::{Board, OccupantState};
 use crate::board::board_pos::{BoardPosition, BoardLineIterator, CaptureType};
 use crate::board::piece::{Piece, PieceType, PlayerColor};
@@ -7,6 +9,7 @@ use crate::moves::util::BoardBitmap;
 pub mod util;
 mod move_patterns;
 
+/// Represents a valid piece type which a pawn may promote to.
 #[derive(Copy, Clone, Debug)]
 pub enum PromotionType {
     Knight,
@@ -40,6 +43,8 @@ impl TryFrom<PieceType> for PromotionType {
     }
 }
 
+/// Represents the movement of a piece from one square to another, without any additional
+/// information.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PieceMovement {
     pub from: BoardPosition,
@@ -56,6 +61,8 @@ impl TryFrom<((u8, u8), (u8, u8))> for PieceMovement {
     }
 }
 
+/// Represents any chess move, which includes the movement from one square to another, and may
+/// include a pawn promotion type (see [PromotionType]).
 #[derive(Copy, Clone, Debug)]
 pub struct ChessMove {
     pub piece_movement: PieceMovement,

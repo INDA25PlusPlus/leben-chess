@@ -1,9 +1,15 @@
+//! Utility integer types used in various other parts of the library.
+
 use crate::board::board_pos::BoardPosition;
 
+/// Contains a `u8` value with the invariant of always being in the `0b0000_0000` to `0b0000_0111`
+/// range (inclusive).
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
 pub struct U3 { value: u8 }
 
 impl U3 {
+    /// returns: `Some(U3)` if value is in the range `0b0000_0000` to `0b0000_0111` (inclusive),
+    /// otherwise `None`.
     pub const fn new(value: u8) -> Option<U3> {
         if value > 0b00000111 {
             None
@@ -12,6 +18,7 @@ impl U3 {
         }
     }
 
+    /// returns: The underlying `u8` value.
     pub const fn get(self) -> u8 {
         self.value
     }
@@ -36,10 +43,14 @@ impl TryFrom<u8> for U3 {
     }
 }
 
+/// Contains a `u8` value with the invariant of always being in the `0b0000_0000` to `0b0011_1111`
+/// range (inclusive).
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
 pub struct U6 { value: u8 }
 
 impl U6 {
+    /// returns `Some(U6)` if value is in the range `0b0000_0000` to `0b0011_1111` (inclusive),
+    /// otherwise `None`.
     pub const fn new(value: u8) -> Option<U6> {
         if value > 0b00111111 {
             None
@@ -48,6 +59,7 @@ impl U6 {
         }
     }
 
+    /// returns: The underlying `u8` value.
     pub const fn get(self) -> u8 {
         self.value
     }

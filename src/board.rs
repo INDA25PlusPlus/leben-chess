@@ -1,10 +1,15 @@
+//! Types and methods to manage the state of a chess board. This module contains low-level
+//! functionality accessing and modifying individual squares of the board, disregarding chess rule
+//! logic.
+
 pub mod piece;
 pub mod board_pos;
 
 use std::fmt::{Display, Formatter};
 use crate::board::board_pos::BoardPosition;
-use crate::board::piece::{Piece, PieceType::*, PlayerColor::*, PlayerColor};
+use crate::board::piece::{Piece, PieceType::*, PieceType, PlayerColor::*, PlayerColor};
 
+/// The `Board` type. Represents a grid of squares that are either empty or contain a piece.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Board { squares: [[Option<Piece>; 8]; 8] }
 
@@ -30,6 +35,9 @@ impl Display for Board {
     }
 }
 
+/// Represents the state of a square in relation to another piece. `Empty` signifies an empty
+/// square, `Friendly` signifies that the piece on the square is of the same color as the given
+/// piece, and `Enemy` signifies that the piece on the square is of another color.
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum OccupantState {
     Empty,
@@ -42,64 +50,26 @@ impl Board {
         squares: [[None; 8]; 8]
     };
 
+    const fn default_board_file(piece_type: PieceType) -> [Option<Piece>; 8] {
+        [
+            Some(Piece { piece_type, player: White }),
+            Some(Piece { piece_type: Pawn, player: White }),
+            None, None, None, None,
+            Some(Piece { piece_type: Pawn, player: Black }),
+            Some(Piece { piece_type, player: Black }),
+        ]
+    }
+
     const DEFAULT_BOARD: Board = Board {
         squares: [
-            [
-                Some(Piece { piece_type: Rook, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Rook, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Knight, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Knight, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Bishop, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Bishop, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Queen, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Queen, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: King, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: King, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Bishop, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Bishop, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Knight, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Knight, player: Black }),
-            ],
-            [
-                Some(Piece { piece_type: Rook, player: White }),
-                Some(Piece { piece_type: Pawn, player: White }),
-                None, None, None, None,
-                Some(Piece { piece_type: Pawn, player: Black }),
-                Some(Piece { piece_type: Rook, player: Black }),
-            ],
+            Board::default_board_file(Rook),
+            Board::default_board_file(Knight),
+            Board::default_board_file(Bishop),
+            Board::default_board_file(Queen),
+            Board::default_board_file(King),
+            Board::default_board_file(Bishop),
+            Board::default_board_file(Knight),
+            Board::default_board_file(Rook),
         ]
     };
 
@@ -111,15 +81,19 @@ impl Board {
         &mut self.squares[pos.file.get() as usize][pos.rank.get() as usize]
     }
 
+    /// Get the piece at a given [BoardPosition]
     pub fn get_piece(&self, pos: BoardPosition) -> Option<Piece> {
         *self.square_at(pos)
     }
 
+    /// Set the piece at a given [BoardPosition]
     pub fn set_piece(&mut self, pos: BoardPosition, piece: Option<Piece>) {
         *self.square_at_mut(pos) = piece;
     }
 
-    pub(crate) fn get_occupant_state(&self, pos: BoardPosition, active_player: PlayerColor) -> OccupantState {
+    pub(crate) fn get_occupant_state(&self, pos: BoardPosition,
+                                     active_player: PlayerColor) -> OccupantState
+    {
         match self.get_piece(pos) {
             None => OccupantState::Empty,
             Some(piece) => if piece.player == active_player {
@@ -131,8 +105,19 @@ impl Board {
     }
 
     /// Instantiate a board from a 2D array of pieces, arranged first by file and then by rank
+    ///
+    /// # Examples
+    /// `squares[2][4]` corresponds to the square C5.
     pub const fn from_array(squares: [[Option<Piece>; 8]; 8]) -> Board {
         Board { squares }
+    }
+
+    /// Get the 2D array representation of the board, arranged first by file and then by rank
+    ///
+    /// # Examples
+    /// `squares[2][4]` corresponds to the square C5.
+    pub const fn to_array(&self) -> [[Option<Piece>; 8]; 8] {
+        self.squares
     }
 
     /// Instantiate an empty board
@@ -144,7 +129,6 @@ impl Board {
     pub fn default_board() -> Board {
         Board::DEFAULT_BOARD
     }
-
 
     /// Instantiate a board from the piece placement section of a FEN string
     ///
@@ -159,7 +143,7 @@ impl Board {
     ///
     /// see: [Forsyth–Edwards Notation - Wikipedia](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation#Definition)
     ///
-    /// returns: `Option<Board>`
+    /// returns: `Some(Board)` if the FEN string was parsed successfully, otherwise `None`.
     pub fn from_fen_string(string: &str) -> Option<Board> {
         let mut board = Board::empty_board();
         let mut file = 0;
@@ -194,6 +178,7 @@ impl Board {
     }
 }
 
+/// An iterator that iterates over the squares of a [Board] object.
 #[derive(Copy, Clone, Debug)]
 pub struct BoardIterator<'a> {
     board: &'a Board,

@@ -1,3 +1,5 @@
+//! Utility bitmap types used in the `moves` module.
+
 use std::fmt::{Debug, Display, Formatter};
 use crate::board::board_pos::BoardPosition;
 use crate::util::U6;
@@ -37,31 +39,37 @@ impl Debug for Bitmap64 {
     }
 }
 
+/// Represents a mapping between a given chess board square and a boolean value.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct BoardBitmap {
     bitmap: Bitmap64
 }
 
 impl BoardBitmap {
+    /// returns: A bitmap with `false` assigned to each square.
     pub fn all_zeros() -> BoardBitmap {
         BoardBitmap::default()
     }
 
+    /// returns: A bitmap with `true` assigned to each square.
     pub fn all_ones() -> BoardBitmap {
         BoardBitmap {
             bitmap: Bitmap64::all_ones()
         }
     }
 
+    /// returns: The boolean value which a given square maps to.
     pub fn get(&self, index: BoardPosition) -> bool {
         self.bitmap.get(index.into())
     }
 
+    /// Sets the boolean value which a given square maps to.
     pub fn set(&mut self, index: BoardPosition, value: bool) {
         self.bitmap.set(index.into(), value)
     }
 
-    pub(crate) fn is_all_zeros(&self) -> bool {
+    /// returns: Whether each square is mapped to `false`.
+    pub fn is_all_zeros(&self) -> bool {
         self.bitmap.data == 0x0000_0000_0000_0000
     }
 }

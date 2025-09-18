@@ -1,12 +1,18 @@
+//! Types for representing chess pieces.
+
 use PieceType::*;
 use PlayerColor::*;
 
+/// One of the standard chess piece types: Pawn, knight, bishop, rook, queen, king
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PieceType {
     Pawn, Knight, Bishop, Rook, Queen, King
 }
 
 impl PieceType {
+    /// see: [Chess piece relative value - Wikipedia](https://en.wikipedia.org/wiki/Chess_piece_relative_value#Standard_valuations)
+    ///
+    /// returns: The standard valuation of the given piece type.
     pub fn piece_value(&self) -> Option<u8> {
         match self {
             Pawn => Some(1),
@@ -19,12 +25,14 @@ impl PieceType {
     }
 }
 
+/// One of the piece colors: White or black
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PlayerColor {
     White, Black
 }
 
 impl PlayerColor {
+    /// returns: The other player's color
     pub fn other_player(&self) -> PlayerColor {
         match self {
             White => Black,
@@ -33,6 +41,7 @@ impl PlayerColor {
     }
 }
 
+/// Represents a piece on the chess board, with a given type and color.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Piece {
     pub piece_type: PieceType,
@@ -40,8 +49,10 @@ pub struct Piece {
 }
 
 impl Piece {
-    /// Gets a piece's FEN notation letter
-    pub(crate) fn get_char(&self) -> &'static str {
+    /// Gets a piece's FEN notation letter (pawn = "P", knight = "N", bishop = "B", rook = "R",
+    /// queen = "Q", king = "K"), with white pieces represented with uppercase letters and black
+    /// pieces with lowercase letters.
+    pub fn get_char(&self) -> &'static str {
         match (self.piece_type, self.player) {
             (Pawn, White) => "P",
             (Knight, White) => "N",
@@ -58,6 +69,30 @@ impl Piece {
         }
     }
 
+
+    /// see: [Chess symbols in Unicode - Wikipedia](https://en.wikipedia.org/wiki/Chess_symbols_in_Unicode#Miscellaneous_symbols)
+    ///
+    /// returns: A piece's Unicode character
+    pub fn get_unicode_char(&self) -> &'static str {
+        match (self.piece_type, self.player) {
+            (Pawn, White) => "♙",
+            (Knight, White) => "♘",
+            (Bishop, White) => "♗",
+            (Rook, White) => "♖",
+            (Queen, White) => "♕",
+            (King, White) => "♔",
+            (Pawn, Black) => "♟",
+            (Knight, Black) => "♞",
+            (Bishop, Black) => "♝",
+            (Rook, Black) => "♜",
+            (Queen, Black) => "♛",
+            (King, Black) => "♚",
+        }
+    }
+
+    /// Gets a [Piece] object given the corresponding FEN notation letter for the piece.
+    ///
+    /// returns: `Some(Piece)` if the character was parsed successfully, otherwise `None`.
     pub fn from_char(ch: char) -> Option<Piece> {
         match ch {
             'P' => Some(Piece { piece_type: Pawn, player: White }),

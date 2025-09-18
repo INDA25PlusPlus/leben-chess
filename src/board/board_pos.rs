@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use crate::util::U3;
 
+/// Representation of the position of a chess board square.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct BoardPosition {
     pub file: U3,
