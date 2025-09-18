@@ -393,28 +393,15 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
         removes_kingside_castling_rights: false,
     };
     if let Some(moved_piece) = board.get_piece(chess_move.piece_movement.from) {
-        result.captured_piece = board.get_piece(chess_move.piece_movement.to);
-        board.set_piece(chess_move.piece_movement.from, None);
-        board.set_piece(chess_move.piece_movement.to, Some(moved_piece));
         if !matches!(moved_piece.piece_type, PieceType::Pawn)
             && matches!(chess_move.promotion, Some(_))
         {
             return Err(ChessError::UnexpectedPromotionType);
         }
+        let mut piece_after_move = moved_piece;
+        result.captured_piece = board.get_piece(chess_move.piece_movement.to);
         match moved_piece.piece_type {
             PieceType::Pawn => {
-                // capture en passant
-                if let Some(en_passant_target) = move_context.en_passant_target {
-                    if chess_move.piece_movement.to == en_passant_target {
-                        if let Some(en_passant_pos) = get_en_passant_pos(active_player,
-                                                                         en_passant_target)
-                        {
-                            result.captured_piece = board.get_piece(en_passant_pos);
-                            board.set_piece(en_passant_pos, None);
-                        }
-                    }
-                }
-
                 // double move creates en passant target
                 result.new_en_passant_target = create_en_passant_target(active_player, chess_move.piece_movement);
 
@@ -425,18 +412,30 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
                 };
                 if chess_move.piece_movement.to.rank.get() == promotion_rank {
                     if let Some(promotion) = chess_move.promotion {
-                        board.set_piece(
-                            chess_move.piece_movement.to,
-                            Some(Piece {
-                                piece_type: promotion.into(), player: active_player
-                            })
-                        );
+                        piece_after_move = Piece {
+                            piece_type: promotion.into(),
+                            player: active_player,
+                        };
                     } else {
                         return Err(ChessError::MissingPromotionType);
                     }
                 } else {
                     if matches!(chess_move.promotion, Some(_)) {
                         return Err(ChessError::UnexpectedPromotionType);
+                    }
+                }
+
+                // capture en passant
+                if let Some(en_passant_target) = move_context.en_passant_target {
+                    if chess_move.piece_movement.to == en_passant_target {
+                        if let Some(en_passant_pos) = get_en_passant_pos(active_player,
+                                                                         en_passant_target)
+                        {
+                            result.captured_piece = board.get_piece(en_passant_pos);
+                            // at this point, if the function is gonna fail, it has already
+                            // happened. therefore, we can safely mutate the board
+                            board.set_piece(en_passant_pos, None);
+                        }
                     }
                 }
             }
@@ -485,7 +484,8 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
             }
             _ => {}
         }
-
+        board.set_piece(chess_move.piece_movement.from, None);
+        board.set_piece(chess_move.piece_movement.to, Some(piece_after_move));
     }
     Ok(result)
 }
