@@ -52,7 +52,9 @@ fn main() -> Result<(), ChessError> {
 
 See the demo CLI program for more usages.
 
-### API
+### Documentation
+
+Run `cargo doc --open` to generate and open docs.
 
 The main type exposed by the library is the `ChessGame` type, that contains all internal game logic. Call `ChessGame::available_moves` to retrieve a bitmap of all legal moves for a given piece, and `ChessGame::do_move` to perform a given move. Use `ChessGame::game_status` to query the current game status.
 
