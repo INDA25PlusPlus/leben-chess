@@ -16,7 +16,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-leben-chess = { git = "https://github.com/INDA25PlusPlus/leben-chess.git", tag = "0.1.0" }
+leben-chess = { git = "https://github.com/INDA25PlusPlus/leben-chess.git", tag = "0.1.1" }
 ```
 
 ### Example

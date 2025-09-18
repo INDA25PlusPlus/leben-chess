@@ -1,5 +1,5 @@
 //! Functions and types for instantiating and playing a chess game. This module represents a more
-//! high-level view of the chess rules than the [moves](crate::moves) module, enforcing chess rules.
+//! high-level view of the chess rules than the [moves] module, enforcing chess rules.
 //! The main type used for interfacing with the library API is the [ChessGame] type, which
 //! represents the state of a game. Its main methods are detailed below:
 //! - [board](ChessGame::board): Returns the [Board] object which represents the current board

@@ -116,8 +116,8 @@ impl Board {
     ///
     /// # Examples
     /// `squares[2][4]` corresponds to the square C5.
-    pub const fn to_array(&self) -> [[Option<Piece>; 8]; 8] {
-        self.squares
+    pub const fn to_array(&self) -> &[[Option<Piece>; 8]; 8] {
+        &self.squares
     }
 
     /// Instantiate an empty board
