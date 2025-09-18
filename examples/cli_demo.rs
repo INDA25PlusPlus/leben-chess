@@ -39,7 +39,7 @@ fn main() {
         let s = s.trim();
         match s {
             "!resign" => {
-                let _ = game.resign(game.active_player());
+                let _ = game.resign();
             }
             "!draw" => {
                 let _ = game.draw_by_agreement();

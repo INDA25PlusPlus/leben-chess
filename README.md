@@ -44,7 +44,7 @@ fn main() -> Result<(), ChessError> {
     let bitmap = game.available_moves(BoardPosition::try_from("d7").unwrap());
     println!("{}", bitmap);
 
-    game.resign(PlayerColor::Black)?;
+    game.resign()?;
 
     Ok(())
 }

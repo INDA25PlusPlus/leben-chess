@@ -111,16 +111,12 @@ impl ChessGame {
         }
     }
 
-    pub fn resign(&mut self, player: PlayerColor) -> Result<(), ChessError> {
+    pub fn resign(&mut self) -> Result<(), ChessError> {
         match self.game_status {
             GameStatus::Normal => {
-                if self.active_player == player {
-                    self.game_status = GameStatus::Win(player.other_player(),
-                                                       WinReason::Resignation);
-                    Ok(())
-                } else {
-                    Err(ChessError::WrongTurn)
-                }
+                self.game_status = GameStatus::Win(self.active_player.other_player(),
+                                                   WinReason::Resignation);
+                Ok(())
             }
             GameStatus::NotYetStarted => Err(ChessError::GameNotStarted),
             GameStatus::Draw(..) | GameStatus::Win(..) => Err(ChessError::GameAlreadyEnded),
