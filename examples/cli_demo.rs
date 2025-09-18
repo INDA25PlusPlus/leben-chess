@@ -11,7 +11,7 @@ fn get_promotion_type(string: &str) -> Result<Option<PromotionType>, ()> {
         return Err(())
     }
     let mut iter = string.chars();
-    if iter.next() != Some('.') {
+    if iter.next() != Some('=') {
         return Err(())
     }
     if let Some(piece_char) = iter.next() {

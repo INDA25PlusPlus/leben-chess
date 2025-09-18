@@ -64,6 +64,7 @@ The library uses a number of utility types to interface with the `ChessGame` typ
 
 This crate includes a small demo CLI program that can be run with `cargo run --example cli_demo`. Here's a list of commands that can be used in the demo:
 - `<from><to>` - Performs the move that moves a piece from `<from>` to `<to>`. Example: `d2d4`.
+- `<from><to>=<type>` - Performs the move that moves a pawn from `<from>` to `<to>` and promotes it to `<type>`. Example: `b7b8=q`.
 - `@<square>` - Lists all squares that the piece at `<square>` can move to in a table. Example: `@b1`.
 - `!resign` - Ends the game by resignation.
 - `!draw` - Draws the game by agreement.
