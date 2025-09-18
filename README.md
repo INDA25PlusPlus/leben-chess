@@ -10,6 +10,15 @@ Till dig som ska använda biblioteket i nästa veckas läxa: Skriv till mig om d
 - Automatic checkmate and stalemate detection
 - Resignation and draw by agreement
 
+### To do
+
+- Move history
+- Time control
+- Track and list captured pieces
+- Fifty move rule draw
+- Three move repetition draw
+- Convert game state to/from FEN string
+
 ## Usage
 
 Add the following to your `Cargo.toml`:
