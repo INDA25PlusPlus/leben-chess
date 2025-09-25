@@ -386,6 +386,19 @@ pub(crate) struct MoveResult {
     pub removes_kingside_castling_rights: bool,
 }
 
+pub(crate) fn expects_promotion_type(board: &Board, active_player: PlayerColor,
+                                     move_from: BoardPosition) -> bool
+{
+    let up_for_promotion_rank = match active_player {
+        PlayerColor::White => 6,
+        PlayerColor::Black => 1,
+    };
+    move_from.rank.get() == up_for_promotion_rank
+        && board.get_piece(move_from).is_some_and(|piece|
+            matches!(piece.piece_type, PieceType::Pawn)
+            && piece.player == active_player)
+}
+
 /// Performs a chess move without checking whether the move is legal, taking into consideration
 /// en passant, castling and promotion rules.
 ///
@@ -413,11 +426,7 @@ pub(crate) fn do_move(board: &mut Board, active_player: PlayerColor, chess_move:
                 result.new_en_passant_target = create_en_passant_target(active_player, chess_move.piece_movement);
 
                 // promotion
-                let promotion_rank = match active_player {
-                    PlayerColor::White => 7,
-                    PlayerColor::Black => 0,
-                };
-                if chess_move.piece_movement.to.rank.get() == promotion_rank {
+                if expects_promotion_type(board, active_player, chess_move.piece_movement.from) {
                     if let Some(promotion) = chess_move.promotion {
                         piece_after_move = Piece {
                             piece_type: promotion.into(),

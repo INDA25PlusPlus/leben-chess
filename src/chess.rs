@@ -216,6 +216,11 @@ impl ChessGame {
         self.available_moves[pos.file.get() as usize][pos.rank.get() as usize]
     }
 
+    /// returns: Whether moving the piece at `pos` would result in a promotion move
+    pub fn expects_promotion_move(&mut self, pos: BoardPosition) -> bool {
+        moves::expects_promotion_type(self.board(), self.active_player, pos)
+    }
+
     fn after_move(&mut self, move_result: MoveResult) {
         // determine en passant target
         self.en_passant_target = move_result.new_en_passant_target;
